@@ -1,4 +1,9 @@
 -------------------------------------------------
+-- Leader
+-------------------------------------------------
+vim.g.mapleader = " "
+
+-------------------------------------------------
 -- Basic settings
 -------------------------------------------------
 vim.opt.number = true
@@ -26,7 +31,7 @@ vim.opt.rtp:prepend(lazypath)
 -------------------------------------------------
 require("lazy").setup({
 
-  -- LSP
+  -- Mason
   {
     "williamboman/mason.nvim",
     config = function()
@@ -45,11 +50,23 @@ require("lazy").setup({
     end,
   },
 
+  -- LSP (Neovim 0.11+)
   {
     "neovim/nvim-lspconfig",
     config = function()
-      vim.lsp.enable("phpactor")
-      vim.lsp.enable("lua_ls")
+
+      vim.lsp.start({
+        name = "phpactor",
+        cmd = { "phpactor" },
+        root_dir = vim.loop.cwd,
+      })
+
+      vim.lsp.start({
+        name = "lua_ls",
+        cmd = { "lua-language-server" },
+        root_dir = vim.loop.cwd,
+      })
+
     end,
   },
 
@@ -63,11 +80,6 @@ require("lazy").setup({
     config = function()
       local cmp = require("cmp")
       cmp.setup({
-        snippet = {
-          expand = function(args)
-            require("luasnip").lsp_expand(args.body)
-          end,
-        },
         sources = {
           { name = "nvim_lsp" },
         },
@@ -78,19 +90,7 @@ require("lazy").setup({
     end,
   },
 
-  -- Treesitter
-  {
-    "nvim-treesitter/nvim-treesitter",
-    build = ":TSUpdate",
-    config = function()
-      require("nvim-treesitter.configs").setup({
-        ensure_installed = { "php", "lua", "blade" },
-        highlight = { enable = true },
-      })
-    end,
-  },
-
-  -- Telescope (fuzzy finder)
+  -- Telescope
   {
     "nvim-telescope/telescope.nvim",
     dependencies = { "nvim-lua/plenary.nvim" },
@@ -123,6 +123,28 @@ require("lazy").setup({
     end,
   },
 
+  -- Autopairs
+  {
+    "windwp/nvim-autopairs",
+    config = function()
+      require("nvim-autopairs").setup({})
+    end,
+  },
+
+})
+
+-------------------------------------------------
+-- Folding (indent)
+-------------------------------------------------
+vim.opt.foldenable = true
+vim.opt.foldlevelstart = 99
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "php", "blade" },
+  callback = function()
+    vim.opt_local.foldmethod = "indent"
+    vim.opt_local.foldlevel = 99
+  end,
 })
 
 -------------------------------------------------
@@ -130,12 +152,20 @@ require("lazy").setup({
 -------------------------------------------------
 
 -- File explorer
-vim.keymap.set("n", "<leader>e", ":NvimTreeToggle<CR>")
+vim.keymap.set("n", "<leader>e", "<cmd>NvimTreeToggle<CR>", { silent = true })
 
 -- Telescope
-vim.keymap.set("n", "<leader>ff", ":Telescope find_files<CR>")
-vim.keymap.set("n", "<leader>fg", ":Telescope live_grep<CR>")
+vim.keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<CR>", { silent = true })
+vim.keymap.set("n", "<leader>fg", "<cmd>Telescope live_grep<CR>", { silent = true })
 
 -- Git worktree
-vim.keymap.set("n", "<leader>gw", ":Telescope git_worktree git_worktrees<CR>")
-vim.keymap.set("n", "<leader>gn", ":Telescope git_worktree create_git_worktree<CR>")
+vim.keymap.set("n", "<leader>gw", "<cmd>Telescope git_worktree git_worktrees<CR>", { silent = true })
+vim.keymap.set("n", "<leader>gn", "<cmd>Telescope git_worktree create_git_worktree<CR>", { silent = true })
+
+-- LSP navigation
+vim.keymap.set("n", "gd", vim.lsp.buf.definition)
+vim.keymap.set("n", "gr", vim.lsp.buf.references)
+vim.keymap.set("n", "K", vim.lsp.buf.hover)
+
+-- Folding toggle
+vim.keymap.set("n", "<leader>z", "za")

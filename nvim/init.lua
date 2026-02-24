@@ -161,6 +161,7 @@ vim.keymap.set("n", "<leader>fg", "<cmd>Telescope live_grep<CR>", { silent = tru
 -- Git worktree
 vim.keymap.set("n", "<leader>gw", "<cmd>Telescope git_worktree git_worktrees<CR>", { silent = true })
 vim.keymap.set("n", "<leader>gn", "<cmd>Telescope git_worktree create_git_worktree<CR>", { silent = true })
+vim.keymap.set("n", "<C-p>", "<cmd>Telescope find_files<CR>", { silent = true })
 
 -- LSP navigation
 vim.keymap.set("n", "gd", vim.lsp.buf.definition)

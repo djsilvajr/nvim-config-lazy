@@ -44,7 +44,7 @@ require("lazy").setup({
     dependencies = { "williamboman/mason.nvim" },
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = { "phpactor", "lua_ls" },
+        ensure_installed = { "phpactor", "lua_ls", "gopls" },
         automatic_installation = true,
       })
     end,
@@ -65,6 +65,22 @@ require("lazy").setup({
         name = "lua_ls",
         cmd = { "lua-language-server" },
         root_dir = vim.loop.cwd,
+      })
+
+      -- Go LSP
+      vim.lsp.start({
+        name = "gopls",
+        cmd = { "gopls" },
+        root_dir = vim.loop.cwd,
+        settings = {
+          gopls = {
+            analyses = {
+              unusedparams = true,
+            },
+            staticcheck = true,
+            gofumpt = true,
+          },
+        },
       })
 
     end,

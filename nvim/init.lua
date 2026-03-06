@@ -57,7 +57,15 @@ require("lazy").setup({
     lazy = false,
     priority = 100,
     opts = {
-      ensure_installed = { "lua", "vim", "vimdoc", "go" },
+      ensure_installed = {
+        "lua", "vim", "vimdoc",
+        "go",
+        "php",        -- ✅ PHP
+        "html",       -- ✅ Blade/Laravel
+        "css",        -- ✅ CSS
+        "javascript", -- ✅ JS (usado no Laravel frontend)
+        "json",       -- ✅ JSON
+      },
       auto_install = true,
       highlight = { enable = true }
     }
@@ -69,8 +77,18 @@ require("lazy").setup({
   {
     "neovim/nvim-lspconfig",
     config = function()
+      -- Go
       vim.lsp.config("gopls", {})
       vim.lsp.enable("gopls")
+
+      -- PHP + Laravel (phpactor)
+      vim.lsp.config("phpactor", {
+        init_options = {
+          ["language_server_phpstan.enabled"] = false,
+          ["language_server_psalm.enabled"]   = false,
+        }
+      })
+      vim.lsp.enable("phpactor")
     end
   },
 
@@ -85,9 +103,20 @@ require("lazy").setup({
     "williamboman/mason-lspconfig.nvim",
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = { "gopls" }
+        ensure_installed = {
+          "gopls",
+          "phpactor", -- ✅ PHP LSP
+        }
       })
     end
+  },
+
+  -------------------------------------------------
+  -- Blade (Laravel templates)
+  -------------------------------------------------
+  {
+    "jwalton512/vim-blade",  -- ✅ syntax para arquivos .blade.php
+    ft = { "blade" }
   },
 
   -------------------------------------------------
@@ -98,16 +127,32 @@ require("lazy").setup({
     dependencies = {
       "hrsh7th/cmp-nvim-lsp",
       "L3MON4D3/LuaSnip",
+      "saadparwaiz1/cmp_luasnip",        -- ✅ snippets no autocomplete
     },
     config = function()
-      local cmp = require("cmp")
+      local cmp     = require("cmp")
+      local luasnip = require("luasnip")
+
       cmp.setup({
+        snippet = {
+          expand = function(args)
+            luasnip.lsp_expand(args.body)
+          end
+        },
         sources = {
-          { name = "nvim_lsp" }
+          { name = "nvim_lsp" },
+          { name = "luasnip"  },
         },
         mapping = cmp.mapping.preset.insert({
           ["<C-Space>"] = cmp.mapping.complete(),
           ["<CR>"]      = cmp.mapping.confirm({ select = true }),
+          ["<Tab>"]     = cmp.mapping(function(fallback)  -- ✅ Tab para navegar snippets
+            if luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
         })
       })
     end

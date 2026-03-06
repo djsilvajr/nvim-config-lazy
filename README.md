@@ -97,15 +97,16 @@ winget install GoLang.Go
 
 #### 🐧 Linux / Mac
 
-```bash
-git clone https://github.com/djsilvajr/nvim-config-lazy.git ~/.config/nvim
-```
+Adicionar init.lua em :
+
+- .config/nvim
+
 
 #### 🪟 Windows (PowerShell)
 
-```powershell
-git clone https://github.com/djsilvajr/nvim-config-lazy.git "$env:LOCALAPPDATA\nvim"
-```
+Adicionar init.lua em :
+
+- LOCALAPPDATA\nvim
 
 ---
 

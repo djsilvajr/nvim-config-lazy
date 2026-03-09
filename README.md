@@ -67,6 +67,8 @@ sudo pacman -S ripgrep           # Arch
 # Go (para gopls)
 sudo apt install golang          # Ubuntu/Debian
 sudo pacman -S go                # Arch
+
+:MasonInstall gopls phpactor
 ```
 
 #### 🪟 Windows (PowerShell como administrador)
@@ -87,6 +89,9 @@ winget install BurntSushi.ripgrep.MSVC
 
 # Go (para gopls)
 winget install GoLang.Go
+
+:MasonInstall gopls
+npm install -g intelephense
 ```
 
 > ⚠️ **Windows:** Após instalar o compilador C, adicione-o ao PATH e reinicie o terminal.

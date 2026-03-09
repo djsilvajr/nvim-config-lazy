@@ -112,7 +112,7 @@ require("lazy").setup({
   {
     "neovim/nvim-lspconfig",
     config = function()
-      -- Go (igual nos dois SOs)
+      -- Go
       vim.lsp.config("gopls", {})
       vim.lsp.enable("gopls")
 
@@ -136,6 +136,10 @@ require("lazy").setup({
         })
         vim.lsp.enable("phpactor")
       end
+
+      -- ✅ Laravel LSP (funciona nos dois SOs)
+      vim.lsp.config("laravel_ls", {})
+      vim.lsp.enable("laravel_ls")
     end
   },
 

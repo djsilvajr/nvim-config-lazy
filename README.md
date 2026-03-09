@@ -69,6 +69,28 @@ sudo apt install golang          # Ubuntu/Debian
 sudo pacman -S go                # Arch
 ```
 
+#### 🪟 Windows (PowerShell como administrador)
+
+```powershell
+# Neovim 0.11+
+winget install Neovim.Neovim
+
+# Git
+winget install Git.Git
+
+# Compilador C (para nvim-treesitter) — escolha um dos dois
+winget install LLVM.LLVM         # Opção 1: LLVM (recomendado)
+winget install MinGW.MinGW       # Opção 2: MinGW
+
+# ripgrep (para Telescope live_grep)
+winget install BurntSushi.ripgrep.MSVC
+
+# Go (para gopls)
+winget install GoLang.Go
+```
+
+> ⚠️ **Windows:** Após instalar o compilador C, adicione-o ao PATH e reinicie o terminal.
+
 ---
 
 ### Configuração

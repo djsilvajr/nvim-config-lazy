@@ -6,12 +6,40 @@ vim.g.mapleader = " "
 -------------------------------------------------
 -- Basic settings
 -------------------------------------------------
-vim.opt.number = true
+vim.opt.number         = true
 vim.opt.relativenumber = true
-vim.opt.tabstop = 4
-vim.opt.shiftwidth = 4
-vim.opt.expandtab = true
-vim.opt.termguicolors = true
+vim.opt.tabstop        = 4
+vim.opt.shiftwidth     = 4
+vim.opt.expandtab      = true
+vim.opt.termguicolors  = true
+vim.opt.clipboard      = "unnamedplus" -- ✅ funciona nos dois SOs
+
+-------------------------------------------------
+-- WSL clipboard (só ativa no WSL)
+-------------------------------------------------
+if vim.fn.has("wsl") == 1 then
+  vim.g.clipboard = {
+    name  = "win32yank",
+    copy  = {
+      ["+"] = "win32yank.exe -i --crlf",
+      ["*"] = "win32yank.exe -i --crlf",
+    },
+    paste = {
+      ["+"] = "win32yank.exe -o --lf",
+      ["*"] = "win32yank.exe -o --lf",
+    },
+    cache_enabled = 0,
+  }
+end
+
+-------------------------------------------------
+-- Blade filetype detection
+-------------------------------------------------
+vim.filetype.add({
+  pattern = {
+    [".*%.blade%.php"] = "blade",
+  }
+})
 
 -------------------------------------------------
 -- Lazy bootstrap
@@ -32,6 +60,13 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 -------------------------------------------------
+-- Detecta o SO uma vez só
+-------------------------------------------------
+local is_windows = vim.fn.has("win32") == 1
+local is_wsl     = vim.fn.has("wsl")   == 1
+local is_linux   = not is_windows and not is_wsl
+
+-------------------------------------------------
 -- Plugins
 -------------------------------------------------
 require("lazy").setup({
@@ -49,7 +84,7 @@ require("lazy").setup({
   },
 
   -------------------------------------------------
-  -- Treesitter (syntax highlight)
+  -- Treesitter
   -------------------------------------------------
   {
     "nvim-treesitter/nvim-treesitter",
@@ -60,11 +95,11 @@ require("lazy").setup({
       ensure_installed = {
         "lua", "vim", "vimdoc",
         "go",
-        "php",        -- ✅ PHP
-        "html",       -- ✅ Blade/Laravel
-        "css",        -- ✅ CSS
-        "javascript", -- ✅ JS (usado no Laravel frontend)
-        "json",       -- ✅ JSON
+        "php",
+        "html",
+        "css",
+        "javascript",
+        "json",
       },
       auto_install = true,
       highlight = { enable = true }
@@ -77,18 +112,30 @@ require("lazy").setup({
   {
     "neovim/nvim-lspconfig",
     config = function()
-      -- Go
+      -- Go (igual nos dois SOs)
       vim.lsp.config("gopls", {})
       vim.lsp.enable("gopls")
 
-      -- PHP + Laravel (phpactor)
-      vim.lsp.config("phpactor", {
-        init_options = {
-          ["language_server_phpstan.enabled"] = false,
-          ["language_server_psalm.enabled"]   = false,
-        }
-      })
-      vim.lsp.enable("phpactor")
+      if is_windows then
+        -- ✅ Windows: intelephense (instalado via npm)
+        vim.lsp.config("intelephense", {
+          settings = {
+            intelephense = {
+              files = { maxSize = 5000000 },
+            }
+          }
+        })
+        vim.lsp.enable("intelephense")
+      else
+        -- ✅ Linux/WSL: phpactor (instalado via Mason)
+        vim.lsp.config("phpactor", {
+          init_options = {
+            ["language_server_phpstan.enabled"] = false,
+            ["language_server_psalm.enabled"]   = false,
+          }
+        })
+        vim.lsp.enable("phpactor")
+      end
     end
   },
 
@@ -103,20 +150,43 @@ require("lazy").setup({
     "williamboman/mason-lspconfig.nvim",
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = {
-          "gopls",
-          "phpactor", -- ✅ PHP LSP
-        }
+        -- ✅ Windows só instala gopls, phpactor só no Linux/WSL
+        ensure_installed = is_windows
+          and { "gopls" }
+          or  { "gopls", "phpactor" },
       })
     end
   },
 
   -------------------------------------------------
-  -- Blade (Laravel templates)
+  -- Blade
   -------------------------------------------------
   {
-    "jwalton512/vim-blade",  -- ✅ syntax para arquivos .blade.php
+    "jwalton512/vim-blade",
     ft = { "blade" }
+  },
+
+  -------------------------------------------------
+  -- Snippets
+  -------------------------------------------------
+  {
+    "rafamadriz/friendly-snippets",
+    config = function()
+      require("luasnip.loaders.from_vscode").lazy_load()
+    end
+  },
+
+  -------------------------------------------------
+  -- Formatador (Pint)
+  -------------------------------------------------
+  {
+    "stevearc/conform.nvim",
+    config = function()
+      require("conform").setup({
+        formatters_by_ft = { php = { "pint" } },
+        format_on_save   = { timeout_ms = 2000 },
+      })
+    end
   },
 
   -------------------------------------------------
@@ -127,7 +197,8 @@ require("lazy").setup({
     dependencies = {
       "hrsh7th/cmp-nvim-lsp",
       "L3MON4D3/LuaSnip",
-      "saadparwaiz1/cmp_luasnip",        -- ✅ snippets no autocomplete
+      "saadparwaiz1/cmp_luasnip",
+      "rafamadriz/friendly-snippets",
     },
     config = function()
       local cmp     = require("cmp")
@@ -146,7 +217,7 @@ require("lazy").setup({
         mapping = cmp.mapping.preset.insert({
           ["<C-Space>"] = cmp.mapping.complete(),
           ["<CR>"]      = cmp.mapping.confirm({ select = true }),
-          ["<Tab>"]     = cmp.mapping(function(fallback)  -- ✅ Tab para navegar snippets
+          ["<Tab>"]     = cmp.mapping(function(fallback)
             if luasnip.expand_or_jumpable() then
               luasnip.expand_or_jump()
             else
@@ -213,23 +284,16 @@ require("lazy").setup({
 -------------------------------------------------
 -- Keymaps
 -------------------------------------------------
-
--- File explorer
-vim.keymap.set("n", "<leader>e",  "<cmd>NvimTreeToggle<CR>",                                      { silent = true })
-
--- Telescope
-vim.keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<CR>",                                { silent = true })
-vim.keymap.set("n", "<leader>fg", "<cmd>Telescope live_grep<CR>",                                 { silent = true })
-vim.keymap.set("n", "<C-p>",      "<cmd>Telescope find_files<CR>",                                { silent = true })
-
--- Git worktree
-vim.keymap.set("n", "<leader>gw", "<cmd>Telescope git_worktree git_worktrees<CR>",                { silent = true })
-vim.keymap.set("n", "<leader>gn", "<cmd>Telescope git_worktree create_git_worktree<CR>",          { silent = true })
-
--- LSP navigation
-vim.keymap.set("n", "gd",         vim.lsp.buf.definition,                                         { silent = true })
-vim.keymap.set("n", "gr",         vim.lsp.buf.references,                                         { silent = true })
-vim.keymap.set("n", "K",          vim.lsp.buf.hover,                                              { silent = true })
-
--- Folding toggle
-vim.keymap.set("n", "<leader>z",  "za",                                                            { silent = true })
+vim.keymap.set("n", "<leader>e",  "<cmd>NvimTreeToggle<CR>",                             { silent = true })
+vim.keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<CR>",                       { silent = true })
+vim.keymap.set("n", "<leader>fg", "<cmd>Telescope live_grep<CR>",                        { silent = true })
+vim.keymap.set("n", "<C-p>",      "<cmd>Telescope find_files<CR>",                       { silent = true })
+vim.keymap.set("n", "<leader>gw", "<cmd>Telescope git_worktree git_worktrees<CR>",       { silent = true })
+vim.keymap.set("n", "<leader>gn", "<cmd>Telescope git_worktree create_git_worktree<CR>", { silent = true })
+vim.keymap.set("n", "gd",         vim.lsp.buf.definition,                                { silent = true })
+vim.keymap.set("n", "gr",         vim.lsp.buf.references,                                { silent = true })
+vim.keymap.set("n", "K",          vim.lsp.buf.hover,                                     { silent = true })
+vim.keymap.set("n", "<leader>d",  vim.diagnostic.open_float,                             { silent = true })
+vim.keymap.set("n", "[d",         vim.diagnostic.goto_prev,                              { silent = true })
+vim.keymap.set("n", "]d",         vim.diagnostic.goto_next,                              { silent = true })
+vim.keymap.set("n", "<leader>z",  "za",                                                   { silent = true })

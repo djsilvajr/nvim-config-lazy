@@ -12,7 +12,7 @@ vim.opt.tabstop        = 4
 vim.opt.shiftwidth     = 4
 vim.opt.expandtab      = true
 vim.opt.termguicolors  = true
-vim.opt.clipboard      = "unnamedplus" -- ✅ funciona nos dois SOs
+vim.opt.clipboard      = "unnamedplus"
 
 -------------------------------------------------
 -- WSL clipboard (só ativa no WSL)
@@ -44,9 +44,9 @@ vim.filetype.add({
 -------------------------------------------------
 -- Lazy bootstrap
 -------------------------------------------------
+local uv = vim.uv or vim.loop -- compat 0.10/0.11+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-
-if not vim.loop.fs_stat(lazypath) then
+if not uv.fs_stat(lazypath) then
   vim.fn.system({
     "git",
     "clone",
@@ -56,7 +56,6 @@ if not vim.loop.fs_stat(lazypath) then
     lazypath,
   })
 end
-
 vim.opt.rtp:prepend(lazypath)
 
 -------------------------------------------------
@@ -64,13 +63,11 @@ vim.opt.rtp:prepend(lazypath)
 -------------------------------------------------
 local is_windows = vim.fn.has("win32") == 1
 local is_wsl     = vim.fn.has("wsl")   == 1
-local is_linux   = not is_windows and not is_wsl
 
 -------------------------------------------------
 -- Plugins
 -------------------------------------------------
 require("lazy").setup({
-
   -------------------------------------------------
   -- Colorscheme
   -------------------------------------------------
@@ -108,6 +105,7 @@ require("lazy").setup({
 
   -------------------------------------------------
   -- LSP
+  -- Requer Neovim 0.11+ por causa de vim.lsp.config / vim.lsp.enable
   -------------------------------------------------
   {
     "neovim/nvim-lspconfig",
@@ -117,7 +115,7 @@ require("lazy").setup({
       vim.lsp.enable("gopls")
 
       if is_windows then
-        -- ✅ Windows: intelephense (instalado via npm)
+        -- Windows: intelephense (instalado via npm)
         vim.lsp.config("intelephense", {
           settings = {
             intelephense = {
@@ -127,7 +125,7 @@ require("lazy").setup({
         })
         vim.lsp.enable("intelephense")
       else
-        -- ✅ Linux/WSL: phpactor (instalado via Mason)
+        -- Linux/WSL: phpactor (instalado via Mason)
         vim.lsp.config("phpactor", {
           init_options = {
             ["language_server_phpstan.enabled"] = false,
@@ -137,27 +135,25 @@ require("lazy").setup({
         vim.lsp.enable("phpactor")
       end
 
-      -- ✅ Laravel LSP (funciona nos dois SOs)
+      -- Laravel LSP (funciona nos dois SOs)
       vim.lsp.config("laravel_ls", {})
       vim.lsp.enable("laravel_ls")
     end
   },
-
   {
     "williamboman/mason.nvim",
     config = function()
       require("mason").setup()
     end
   },
-
   {
     "williamboman/mason-lspconfig.nvim",
     config = function()
       require("mason-lspconfig").setup({
-        -- ✅ Windows só instala gopls, phpactor só no Linux/WSL
+        -- Windows usa intelephense via npm; Linux/WSL usa phpactor via Mason
         ensure_installed = is_windows
-          and { "gopls" }
-          or  { "gopls", "phpactor" },
+          and { "gopls", "laravel_ls" }
+          or  { "gopls", "phpactor", "laravel_ls" },
       })
     end
   },
@@ -168,16 +164,6 @@ require("lazy").setup({
   {
     "jwalton512/vim-blade",
     ft = { "blade" }
-  },
-
-  -------------------------------------------------
-  -- Snippets
-  -------------------------------------------------
-  {
-    "rafamadriz/friendly-snippets",
-    config = function()
-      require("luasnip.loaders.from_vscode").lazy_load()
-    end
   },
 
   -------------------------------------------------
@@ -194,7 +180,7 @@ require("lazy").setup({
   },
 
   -------------------------------------------------
-  -- Autocomplete
+  -- Autocomplete (cmp + luasnip + friendly-snippets juntos)
   -------------------------------------------------
   {
     "hrsh7th/nvim-cmp",
@@ -207,6 +193,10 @@ require("lazy").setup({
     config = function()
       local cmp     = require("cmp")
       local luasnip = require("luasnip")
+
+      -- Carrega os snippets do friendly-snippets aqui, onde luasnip
+      -- garantidamente já existe.
+      require("luasnip.loaders.from_vscode").lazy_load()
 
       cmp.setup({
         snippet = {
@@ -230,6 +220,12 @@ require("lazy").setup({
           end, { "i", "s" }),
         })
       })
+
+      -- Integração autopairs <-> cmp (fecha parênteses ao confirmar função)
+      local ok, cmp_autopairs = pcall(require, "nvim-autopairs.completion.cmp")
+      if ok then
+        cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
+      end
     end
   },
 
@@ -282,8 +278,26 @@ require("lazy").setup({
       require("nvim-autopairs").setup()
     end
   }
-
 })
+
+-------------------------------------------------
+-- Diagnostic helpers (compat 0.10/0.11+)
+-------------------------------------------------
+local function diag_prev()
+  if vim.diagnostic.jump then
+    vim.diagnostic.jump({ count = -1, float = true })
+  else
+    vim.diagnostic.goto_prev()
+  end
+end
+
+local function diag_next()
+  if vim.diagnostic.jump then
+    vim.diagnostic.jump({ count = 1, float = true })
+  else
+    vim.diagnostic.goto_next()
+  end
+end
 
 -------------------------------------------------
 -- Keymaps
@@ -298,6 +312,6 @@ vim.keymap.set("n", "gd",         vim.lsp.buf.definition,                       
 vim.keymap.set("n", "gr",         vim.lsp.buf.references,                                { silent = true })
 vim.keymap.set("n", "K",          vim.lsp.buf.hover,                                     { silent = true })
 vim.keymap.set("n", "<leader>d",  vim.diagnostic.open_float,                             { silent = true })
-vim.keymap.set("n", "[d",         vim.diagnostic.goto_prev,                              { silent = true })
-vim.keymap.set("n", "]d",         vim.diagnostic.goto_next,                              { silent = true })
-vim.keymap.set("n", "<leader>z",  "za",                                                   { silent = true })
+vim.keymap.set("n", "[d",         diag_prev,                                             { silent = true })
+vim.keymap.set("n", "]d",         diag_next,                                             { silent = true })
+vim.keymap.set("n", "<leader>z",  "za",                                                  { silent = true })

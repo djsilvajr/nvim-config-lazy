@@ -2,7 +2,6 @@
 -- Leader
 -------------------------------------------------
 vim.g.mapleader = " "
-
 -------------------------------------------------
 -- Basic settings
 -------------------------------------------------
@@ -13,7 +12,6 @@ vim.opt.shiftwidth     = 4
 vim.opt.expandtab      = true
 vim.opt.termguicolors  = true
 vim.opt.clipboard      = "unnamedplus"
-
 -------------------------------------------------
 -- WSL clipboard (só ativa no WSL)
 -------------------------------------------------
@@ -31,7 +29,6 @@ if vim.fn.has("wsl") == 1 then
     cache_enabled = 0,
   }
 end
-
 -------------------------------------------------
 -- Blade filetype detection
 -------------------------------------------------
@@ -40,7 +37,6 @@ vim.filetype.add({
     [".*%.blade%.php"] = "blade",
   }
 })
-
 -------------------------------------------------
 -- Lazy bootstrap
 -------------------------------------------------
@@ -57,13 +53,11 @@ if not uv.fs_stat(lazypath) then
   })
 end
 vim.opt.rtp:prepend(lazypath)
-
 -------------------------------------------------
 -- Detecta o SO uma vez só
 -------------------------------------------------
 local is_windows = vim.fn.has("win32") == 1
 local is_wsl     = vim.fn.has("wsl")   == 1
-
 -------------------------------------------------
 -- Plugins
 -------------------------------------------------
@@ -79,30 +73,45 @@ require("lazy").setup({
       vim.cmd("colorscheme tokyonight-night")
     end
   },
-
   -------------------------------------------------
-  -- Treesitter
+  -- Treesitter (highlight de Go, PHP, Blade, etc.)
+  -- IMPORTANTE:
+  --   1. branch = "master"  -> fixa a API clássica. O branch "main"
+  --      é a reescrita experimental e NÃO expõe nvim-treesitter.configs.
+  --   2. O setup correto fica em nvim-treesitter.configs (não em
+  --      nvim-treesitter), por isso usamos main = "nvim-treesitter.configs"
+  --      pra o lazy chamar require("nvim-treesitter.configs").setup(opts).
   -------------------------------------------------
   {
     "nvim-treesitter/nvim-treesitter",
+    branch = "master",
     build = ":TSUpdate",
     lazy = false,
     priority = 100,
+    main = "nvim-treesitter.configs",
     opts = {
       ensure_installed = {
         "lua", "vim", "vimdoc",
-        "go",
-        "php",
+        "go", "gomod", "gosum", "gowork",
+        "php", "phpdoc",
         "html",
         "css",
         "javascript",
         "json",
+        "bash",
+        "markdown", "markdown_inline",
       },
       auto_install = true,
-      highlight = { enable = true }
-    }
+      sync_install = false,
+      highlight = {
+        enable = true,
+        -- Em arquivos .blade.php deixamos o vim-blade cuidar do realce
+        -- principal pra evitar conflito com o parser de PHP do TS.
+        additional_vim_regex_highlighting = { "blade" },
+      },
+      indent = { enable = true },
+    },
   },
-
   -------------------------------------------------
   -- LSP
   -- Requer Neovim 0.11+ por causa de vim.lsp.config / vim.lsp.enable
@@ -113,7 +122,6 @@ require("lazy").setup({
       -- Go
       vim.lsp.config("gopls", {})
       vim.lsp.enable("gopls")
-
       if is_windows then
         -- Windows: intelephense (instalado via npm)
         vim.lsp.config("intelephense", {
@@ -134,7 +142,6 @@ require("lazy").setup({
         })
         vim.lsp.enable("phpactor")
       end
-
       -- Laravel LSP (funciona nos dois SOs)
       vim.lsp.config("laravel_ls", {})
       vim.lsp.enable("laravel_ls")
@@ -157,15 +164,13 @@ require("lazy").setup({
       })
     end
   },
-
   -------------------------------------------------
-  -- Blade
+  -- Blade (syntax + ftplugin pra .blade.php)
   -------------------------------------------------
   {
     "jwalton512/vim-blade",
     ft = { "blade" }
   },
-
   -------------------------------------------------
   -- Formatador (Pint)
   -------------------------------------------------
@@ -178,7 +183,6 @@ require("lazy").setup({
       })
     end
   },
-
   -------------------------------------------------
   -- Autocomplete (cmp + luasnip + friendly-snippets juntos)
   -------------------------------------------------
@@ -193,11 +197,9 @@ require("lazy").setup({
     config = function()
       local cmp     = require("cmp")
       local luasnip = require("luasnip")
-
       -- Carrega os snippets do friendly-snippets aqui, onde luasnip
       -- garantidamente já existe.
       require("luasnip.loaders.from_vscode").lazy_load()
-
       cmp.setup({
         snippet = {
           expand = function(args)
@@ -220,7 +222,6 @@ require("lazy").setup({
           end, { "i", "s" }),
         })
       })
-
       -- Integração autopairs <-> cmp (fecha parênteses ao confirmar função)
       local ok, cmp_autopairs = pcall(require, "nvim-autopairs.completion.cmp")
       if ok then
@@ -228,7 +229,6 @@ require("lazy").setup({
       end
     end
   },
-
   -------------------------------------------------
   -- File tree
   -------------------------------------------------
@@ -239,7 +239,6 @@ require("lazy").setup({
       require("nvim-tree").setup()
     end
   },
-
   -------------------------------------------------
   -- Telescope
   -------------------------------------------------
@@ -247,7 +246,6 @@ require("lazy").setup({
     "nvim-telescope/telescope.nvim",
     dependencies = { "nvim-lua/plenary.nvim" }
   },
-
   -------------------------------------------------
   -- Git worktree
   -------------------------------------------------
@@ -258,7 +256,6 @@ require("lazy").setup({
       require("telescope").load_extension("git_worktree")
     end
   },
-
   -------------------------------------------------
   -- Git signs
   -------------------------------------------------
@@ -268,7 +265,6 @@ require("lazy").setup({
       require("gitsigns").setup()
     end
   },
-
   -------------------------------------------------
   -- Autopairs
   -------------------------------------------------
@@ -279,7 +275,6 @@ require("lazy").setup({
     end
   }
 })
-
 -------------------------------------------------
 -- Diagnostic helpers (compat 0.10/0.11+)
 -------------------------------------------------
@@ -290,7 +285,6 @@ local function diag_prev()
     vim.diagnostic.goto_prev()
   end
 end
-
 local function diag_next()
   if vim.diagnostic.jump then
     vim.diagnostic.jump({ count = 1, float = true })
@@ -298,7 +292,6 @@ local function diag_next()
     vim.diagnostic.goto_next()
   end
 end
-
 -------------------------------------------------
 -- Keymaps
 -------------------------------------------------

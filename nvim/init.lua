@@ -2,6 +2,7 @@
 -- Leader
 -------------------------------------------------
 vim.g.mapleader = " "
+
 -------------------------------------------------
 -- Basic settings
 -------------------------------------------------
@@ -11,7 +12,8 @@ vim.opt.tabstop        = 4
 vim.opt.shiftwidth     = 4
 vim.opt.expandtab      = true
 vim.opt.termguicolors  = true
-vim.opt.clipboard      = "unnamedplus"
+vim.opt.clipboard      = "unnamedplus" -- ✅ funciona nos dois SOs
+
 -------------------------------------------------
 -- WSL clipboard (só ativa no WSL)
 -------------------------------------------------
@@ -29,6 +31,7 @@ if vim.fn.has("wsl") == 1 then
     cache_enabled = 0,
   }
 end
+
 -------------------------------------------------
 -- Blade filetype detection
 -------------------------------------------------
@@ -37,12 +40,24 @@ vim.filetype.add({
     [".*%.blade%.php"] = "blade",
   }
 })
+
+-------------------------------------------------
+-- JS/TS/React: indentação de 2 espaços
+-------------------------------------------------
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
+  callback = function()
+    vim.bo.tabstop    = 2
+    vim.bo.shiftwidth = 2
+  end,
+})
+
 -------------------------------------------------
 -- Lazy bootstrap
 -------------------------------------------------
-local uv = vim.uv or vim.loop -- compat 0.10/0.11+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not uv.fs_stat(lazypath) then
+
+if not vim.loop.fs_stat(lazypath) then
   vim.fn.system({
     "git",
     "clone",
@@ -52,16 +67,21 @@ if not uv.fs_stat(lazypath) then
     lazypath,
   })
 end
+
 vim.opt.rtp:prepend(lazypath)
+
 -------------------------------------------------
 -- Detecta o SO uma vez só
 -------------------------------------------------
 local is_windows = vim.fn.has("win32") == 1
 local is_wsl     = vim.fn.has("wsl")   == 1
+local is_linux   = not is_windows and not is_wsl
+
 -------------------------------------------------
 -- Plugins
 -------------------------------------------------
 require("lazy").setup({
+
   -------------------------------------------------
   -- Colorscheme
   -------------------------------------------------
@@ -73,48 +93,55 @@ require("lazy").setup({
       vim.cmd("colorscheme tokyonight-night")
     end
   },
+
   -------------------------------------------------
-  -- Treesitter (highlight de Go, PHP, Blade, etc.)
-  -- IMPORTANTE:
-  --   1. branch = "master"  -> fixa a API clássica. O branch "main"
-  --      é a reescrita experimental e NÃO expõe nvim-treesitter.configs.
-  --   2. O setup correto fica em nvim-treesitter.configs (não em
-  --      nvim-treesitter), por isso usamos main = "nvim-treesitter.configs"
-  --      pra o lazy chamar require("nvim-treesitter.configs").setup(opts).
+  -- Treesitter
   -------------------------------------------------
   {
     "nvim-treesitter/nvim-treesitter",
-    branch = "master",
     build = ":TSUpdate",
     lazy = false,
     priority = 100,
-    main = "nvim-treesitter.configs",
-    opts = {
-      ensure_installed = {
-        "lua", "vim", "vimdoc",
-        "go", "gomod", "gosum", "gowork",
-        "php", "phpdoc",
-        "html",
-        "css",
-        "javascript",
-        "json",
-        "bash",
-        "markdown", "markdown_inline",
-      },
-      auto_install = true,
-      sync_install = false,
-      highlight = {
-        enable = true,
-        -- Em arquivos .blade.php deixamos o vim-blade cuidar do realce
-        -- principal pra evitar conflito com o parser de PHP do TS.
-        additional_vim_regex_highlighting = { "blade" },
-      },
-      indent = { enable = true },
-    },
+    config = function()
+      -- O branch main não usa ensure_installed/highlight: os parsers são
+      -- instalados pelo Mason (abaixo) e o highlight é ligado por filetype.
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = {
+          "lua", "vim", "help",
+          "go",
+          "php",
+          "html",
+          "css",
+          "json",
+          "javascript", "javascriptreact",
+          "typescript", "typescriptreact",
+        },
+        callback = function(args)
+          pcall(vim.treesitter.start, args.buf)
+        end,
+      })
+
+      -- Indentação do JSX/TSX vem do treesitter
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
+        callback = function()
+          vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        end,
+      })
+    end
   },
+
+  -------------------------------------------------
+  -- Fecha e renomeia tags JSX/TSX/HTML
+  -------------------------------------------------
+  {
+    "windwp/nvim-ts-autotag",
+    ft = { "html", "javascriptreact", "typescriptreact" },
+    opts = {},
+  },
+
   -------------------------------------------------
   -- LSP
-  -- Requer Neovim 0.11+ por causa de vim.lsp.config / vim.lsp.enable
   -------------------------------------------------
   {
     "neovim/nvim-lspconfig",
@@ -122,8 +149,9 @@ require("lazy").setup({
       -- Go
       vim.lsp.config("gopls", {})
       vim.lsp.enable("gopls")
+
       if is_windows then
-        -- Windows: intelephense (instalado via npm)
+        -- ✅ Windows: intelephense (instalado via npm)
         vim.lsp.config("intelephense", {
           settings = {
             intelephense = {
@@ -133,7 +161,7 @@ require("lazy").setup({
         })
         vim.lsp.enable("intelephense")
       else
-        -- Linux/WSL: phpactor (instalado via Mason)
+        -- ✅ Linux/WSL: phpactor (instalado via Mason)
         vim.lsp.config("phpactor", {
           init_options = {
             ["language_server_phpstan.enabled"] = false,
@@ -142,49 +170,120 @@ require("lazy").setup({
         })
         vim.lsp.enable("phpactor")
       end
-      -- Laravel LSP (funciona nos dois SOs)
+
+      -- ✅ Laravel LSP (funciona nos dois SOs)
       vim.lsp.config("laravel_ls", {})
       vim.lsp.enable("laravel_ls")
+
+      -- ✅ JavaScript, TypeScript e React (funciona nos dois SOs)
+      vim.lsp.config("ts_ls", {})
+      vim.lsp.enable("ts_ls")
+
+      vim.lsp.config("eslint", {})
+      vim.lsp.enable("eslint")
     end
   },
+
   {
     "williamboman/mason.nvim",
     config = function()
       require("mason").setup()
+
+      local parsers = {
+        "lua", "vim", "vimdoc",
+        "go",
+        "php",
+        "html",
+        "css",
+        "json",
+        "javascript", "jsdoc",
+        "typescript", "tsx",
+      }
+
+      local function install_parsers()
+        require("nvim-treesitter").install(parsers)
+      end
+
+      -- Ferramentas que não são LSP (o mason-lspconfig não instala estas)
+      local registry = require("mason-registry")
+      registry.refresh(function()
+        local prettier = registry.get_package("prettier")
+        if not prettier:is_installed() then
+          prettier:install()
+        end
+
+        -- O treesitter precisa do tree-sitter-cli para compilar os parsers
+        local cli = registry.get_package("tree-sitter-cli")
+        if cli:is_installed() then
+          vim.schedule(install_parsers)
+        else
+          cli:install({}, function(success)
+            if success then
+              vim.schedule(install_parsers)
+            end
+          end)
+        end
+      end)
     end
   },
+
   {
     "williamboman/mason-lspconfig.nvim",
     config = function()
       require("mason-lspconfig").setup({
-        -- Windows usa intelephense via npm; Linux/WSL usa phpactor via Mason
+        -- ✅ Windows só instala gopls, phpactor só no Linux/WSL
         ensure_installed = is_windows
-          and { "gopls", "laravel_ls" }
-          or  { "gopls", "phpactor", "laravel_ls" },
+          and { "gopls", "ts_ls", "eslint" }
+          or  { "gopls", "phpactor", "ts_ls", "eslint" },
       })
     end
   },
+
   -------------------------------------------------
-  -- Blade (syntax + ftplugin pra .blade.php)
+  -- Blade
   -------------------------------------------------
   {
     "jwalton512/vim-blade",
     ft = { "blade" }
   },
+
   -------------------------------------------------
-  -- Formatador (Pint)
+  -- Snippets
+  -------------------------------------------------
+  {
+    "rafamadriz/friendly-snippets",
+    config = function()
+      require("luasnip.loaders.from_vscode").lazy_load()
+    end
+  },
+
+  -------------------------------------------------
+  -- Formatadores (Pint e Prettier)
   -------------------------------------------------
   {
     "stevearc/conform.nvim",
     config = function()
       require("conform").setup({
-        formatters_by_ft = { php = { "pint" } },
+        formatters_by_ft = {
+          php             = { "pint" },
+          javascript      = { "prettier" },
+          javascriptreact = { "prettier" },
+          typescript      = { "prettier" },
+          typescriptreact = { "prettier" },
+        },
+        formatters = {
+          -- Só formata projetos que têm configuração do Prettier
+          prettier = { require_cwd = true },
+        },
+        -- Evita aviso a cada save em projetos sem Prettier
+        notify_no_formatters = false,
         format_on_save   = { timeout_ms = 2000 },
       })
     end
   },
+
   -------------------------------------------------
-  -- Autocomplete (cmp + luasnip + friendly-snippets juntos)
+  -- Autocomplete
   -------------------------------------------------
   {
     "hrsh7th/nvim-cmp",
@@ -197,9 +296,7 @@ require("lazy").setup({
     config = function()
       local cmp     = require("cmp")
       local luasnip = require("luasnip")
-      -- Carrega os snippets do friendly-snippets aqui, onde luasnip
-      -- garantidamente já existe.
-      require("luasnip.loaders.from_vscode").lazy_load()
+
       cmp.setup({
         snippet = {
           expand = function(args)
@@ -222,13 +319,9 @@ require("lazy").setup({
           end, { "i", "s" }),
         })
       })
-      -- Integração autopairs <-> cmp (fecha parênteses ao confirmar função)
-      local ok, cmp_autopairs = pcall(require, "nvim-autopairs.completion.cmp")
-      if ok then
-        cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
-      end
     end
   },
+
   -------------------------------------------------
   -- File tree
   -------------------------------------------------
@@ -239,6 +332,7 @@ require("lazy").setup({
       require("nvim-tree").setup()
     end
   },
+
   -------------------------------------------------
   -- Telescope
   -------------------------------------------------
@@ -246,6 +340,7 @@ require("lazy").setup({
     "nvim-telescope/telescope.nvim",
     dependencies = { "nvim-lua/plenary.nvim" }
   },
+
   -------------------------------------------------
   -- Git worktree
   -------------------------------------------------
@@ -256,6 +351,7 @@ require("lazy").setup({
       require("telescope").load_extension("git_worktree")
     end
   },
+
   -------------------------------------------------
   -- Git signs
   -------------------------------------------------
@@ -265,6 +361,7 @@ require("lazy").setup({
       require("gitsigns").setup()
     end
   },
+
   -------------------------------------------------
   -- Autopairs
   -------------------------------------------------
@@ -274,24 +371,9 @@ require("lazy").setup({
       require("nvim-autopairs").setup()
     end
   }
+
 })
--------------------------------------------------
--- Diagnostic helpers (compat 0.10/0.11+)
--------------------------------------------------
-local function diag_prev()
-  if vim.diagnostic.jump then
-    vim.diagnostic.jump({ count = -1, float = true })
-  else
-    vim.diagnostic.goto_prev()
-  end
-end
-local function diag_next()
-  if vim.diagnostic.jump then
-    vim.diagnostic.jump({ count = 1, float = true })
-  else
-    vim.diagnostic.goto_next()
-  end
-end
+
 -------------------------------------------------
 -- Keymaps
 -------------------------------------------------
@@ -304,7 +386,9 @@ vim.keymap.set("n", "<leader>gn", "<cmd>Telescope git_worktree create_git_worktr
 vim.keymap.set("n", "gd",         vim.lsp.buf.definition,                                { silent = true })
 vim.keymap.set("n", "gr",         vim.lsp.buf.references,                                { silent = true })
 vim.keymap.set("n", "K",          vim.lsp.buf.hover,                                     { silent = true })
+vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action,                               { silent = true })
+vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename,                                    { silent = true })
 vim.keymap.set("n", "<leader>d",  vim.diagnostic.open_float,                             { silent = true })
-vim.keymap.set("n", "[d",         diag_prev,                                             { silent = true })
-vim.keymap.set("n", "]d",         diag_next,                                             { silent = true })
-vim.keymap.set("n", "<leader>z",  "za",                                                  { silent = true })
+vim.keymap.set("n", "[d",         vim.diagnostic.goto_prev,                              { silent = true })
+vim.keymap.set("n", "]d",         vim.diagnostic.goto_next,                              { silent = true })
+vim.keymap.set("n", "<leader>z",  "za",                                                   { silent = true })

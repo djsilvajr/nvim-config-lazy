@@ -392,3 +392,17 @@ vim.keymap.set("n", "<leader>d",  vim.diagnostic.open_float,                    
 vim.keymap.set("n", "[d",         vim.diagnostic.goto_prev,                              { silent = true })
 vim.keymap.set("n", "]d",         vim.diagnostic.goto_next,                              { silent = true })
 vim.keymap.set("n", "<leader>z",  "za",                                                   { silent = true })
+
+-- Copiar caminho / nome do arquivo para o clipboard
+local function copy_to_clipboard(value, label)
+  if value == "" then
+    vim.notify("Buffer sem arquivo", vim.log.levels.WARN)
+    return
+  end
+  vim.fn.setreg("+", value)
+  vim.notify(label .. " copiado: " .. value)
+end
+vim.keymap.set("n", "<leader>yp", function() copy_to_clipboard(vim.fn.expand("%:p"), "Caminho") end,
+  { silent = true, desc = "Copiar caminho completo do arquivo" })
+vim.keymap.set("n", "<leader>yn", function() copy_to_clipboard(vim.fn.expand("%:t"), "Nome") end,
+  { silent = true, desc = "Copiar nome do arquivo" })
